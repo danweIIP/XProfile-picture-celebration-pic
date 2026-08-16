@@ -65,11 +65,11 @@ go build
 
 ## 🖥 对于开发者
 
-### 布局规则
+### 📏 布局规则
 
 与原版一致：`cols = ceil(sqrt(n))`，`rows = ceil(n / cols)`，即优先保证接近正方形的整体比例。
 
-### 去重说明
+### 📽 去重逻辑
 
 感知哈希（pHash）判断两张图片"看起来是否相同"，而不要求文件字节完全一致。
 `-threshold` 是汉明距离阈值：
@@ -91,13 +91,13 @@ go build
 
 程序不会自作主张删除任何文件——除非你显式加上 `-delete-duplicates`。
 
-## 作者
+## 🛠 作者
 
 Created by Qiujiu <https://x.com/qiujiudev>
 
 Change by MoAEIOU <https://867678.xyz>
 
-## 条款与授权
+## ⚖️ 条款与授权
 
 - 请合理使用 X(Twitter) 数据
 - 请遵守 X 平台规则
