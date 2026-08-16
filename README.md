@@ -26,13 +26,7 @@
 - 去重从 MD5（要求文件字节完全一致）升级为**感知哈希（pHash）**，能识别同一张头像的不同分辨率/重新编码版本
 - 原版拼图逻辑用单线程处理，Go 版本在图片较多时性能会明显更好（Go 的图片解码和缩放本身开销更低）
 
-## 构建
-
-```bash
-go build
-```
-
-## 使用
+## 🔧 使用
 
 首先使用`一键下载头像.js`这个篡改猴脚本批量下载X粉丝列表中的头像
 
@@ -75,11 +69,19 @@ go build
 
 支持格式：jpg / jpeg / png / bmp / gif / webp
 
-## 布局规则
+## ⚙️ 自行构建
+
+```bash
+go build
+```
+
+## 🖥 对于开发者
+
+### 布局规则
 
 与原版一致：`cols = ceil(sqrt(n))`，`rows = ceil(n / cols)`，即优先保证接近正方形的整体比例。
 
-## 去重说明
+### 去重说明
 
 感知哈希（pHash）判断两张图片"看起来是否相同"，而不要求文件字节完全一致。
 `-threshold` 是汉明距离阈值：
@@ -105,7 +107,7 @@ go build
 
 Created by Qiujiu <https://x.com/qiujiudev>
 
-Changed with MoAEIOU <https://867678.xyz>
+Change by MoAEIOU <https://867678.xyz>
 
 ## 条款与授权
 
