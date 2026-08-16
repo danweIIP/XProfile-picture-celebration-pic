@@ -1,7 +1,5 @@
 # XAvatarWall
 
-原版：<https://github.com/qiujiu-dev/XAvatarWall>
-
 ## ✨ 功能特点
 
 - 📷 配合油猴脚本采集 X(Twitter) 粉丝头像
@@ -91,11 +89,11 @@ go build
 
 程序不会自作主张删除任何文件——除非你显式加上 `-delete-duplicates`。
 
-## 🛠 作者
+## 🛠 贡献者
 
-Created by Qiujiu <https://x.com/qiujiudev>
+Qiujiu <https://x.com/qiujiudev>
 
-Change by MoAEIOU <https://867678.xyz>
+MoAEIOU <https://867678.xyz>
 
 ## ⚖️ 条款与授权
 
