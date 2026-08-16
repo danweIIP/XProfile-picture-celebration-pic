@@ -2,14 +2,15 @@
 //
 // 用法：
 //
-//	不带参数：默认读取当前目录下的 avatars/ 文件夹，输出到 output/fans_grid.jpg
-//	./xavatarwall -input ./avatars -output ./output/fans_grid.jpg -size 200 -spacing 4 -bg "#ADD8E6"
+//	默认读取当前目录下的 avatars.json（油猴脚本「一键下载头像.js」导出的文件），
+//	自动下载其中的头像后拼图，输出到 output/fans_grid.jpg
+//	./xavatarwall -json ./avatars.json -output ./output/fans_grid.jpg -size 200 -spacing 4 -bg "#ADD8E6"
 //
 // 支持子命令风格的开关：
 //
 //	-dedupe         是否在拼图前做感知哈希去重（默认开启）
 //	-dedupe=false   关闭去重
-//	-threshold N    感知哈希汉明距离阈值，越小越严格（默认 5）
+//	-threshold N    感知哈希汉明距离阈值，越小越严格（默认 2）
 package main
 
 import (
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	defaultInputDir  = "avatars"
+	defaultJSONFile  = "avatars.json"
 	defaultOutputDir = "output"
 	defaultOutName   = "fans_grid.jpg"
 
@@ -32,7 +33,7 @@ const (
 )
 
 func main() {
-	inputDir := flag.String("input", defaultInputDir, "头像图片所在文件夹")
+	jsonFile := flag.String("json", defaultJSONFile, "头像数据JSON文件路径（油猴脚本导出的文件）")
 	outputPath := flag.String("output", "", "输出图片路径（默认 output/fans_grid.jpg）")
 	thumbSize := flag.Int("size", defaultThumbSize, "每张头像缩略图的边长（像素）")
 	spacing := flag.Int("spacing", defaultSpacing, "头像之间的间距（像素）")
@@ -42,6 +43,7 @@ func main() {
 	threshold := flag.Int("threshold", defaultThreshold, "感知哈希去重的汉明距离阈值，越小越严格")
 	deleteDup := flag.Bool("delete-duplicates", false, "发现重复图片后直接删除源文件（默认只跳过，不删除）")
 	cols := flag.Int("cols", 0, "手动指定列数（默认自动计算最接近正方形的布局）")
+	workers := flag.Int("workers", 8, "并发下载头像的线程数")
 
 	flag.Parse()
 
@@ -64,23 +66,19 @@ func main() {
 		fatal("JPEG 质量必须在 1-100 之间，当前为 %d", *quality)
 	}
 
-	info, err := os.Stat(*inputDir)
-	if err != nil || !info.IsDir() {
-		fatal("找不到输入文件夹：%s\n提示：默认读取当前目录下的 avatars/ 文件夹，可用 -input 指定其他路径", *inputDir)
+	paths, tempDir, err := downloadAvatarsFromJSON(*jsonFile, *workers)
+	if tempDir != "" {
+		defer os.RemoveAll(tempDir)
 	}
-
-	fmt.Printf("[INFO] 扫描文件夹：%s\n", *inputDir)
-	paths, err := scanImages(*inputDir)
 	if err != nil {
-		fatal("读取文件夹失败：%v", err)
+		// fatal 通过 os.Exit 退出，不会执行 defer，这里需要先手动清理临时目录
+		if tempDir != "" {
+			os.RemoveAll(tempDir)
+		}
+		fatal("%v", err)
 	}
-	if len(paths) == 0 {
-		fatal("未在 %s 中找到任何图片（支持 jpg/jpeg/png/bmp/gif/webp）", *inputDir)
-	}
-	fmt.Printf("[INFO] 找到 %d 张图片\n", len(paths))
 
 	if *dedupe {
-		fmt.Println("[INFO] 正在使用感知哈希扫描重复图片...")
 		groups, err := findDuplicates(paths, *threshold)
 		if err != nil {
 			fmt.Printf("[WARN] 去重扫描出现错误：%v（将继续使用全部图片）\n", err)
@@ -117,7 +115,6 @@ func main() {
 				}
 			}
 			paths = filtered
-			fmt.Printf("[INFO] 去重后剩余 %d 张图片\n", len(paths))
 		}
 	}
 
@@ -133,12 +130,7 @@ func main() {
 		Cols:        *cols,
 	}
 
-	fmt.Println("[INFO] 开始拼图...")
-	if err := buildGrid(paths, *outputPath, opts, func(done, total int) {
-		if done%50 == 0 || done == total {
-			fmt.Printf("[INFO] 进度：%d/%d\n", done, total)
-		}
-	}); err != nil {
+	if err := buildGrid(paths, *outputPath, opts, nil); err != nil {
 		fatal("拼图失败：%v", err)
 	}
 

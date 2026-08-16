@@ -60,7 +60,7 @@ func buildGrid(paths []string, outputPath string, opts GridOptions, progress Pro
 
 	for idx, path := range paths {
 		if err := pasteThumbnail(canvas, path, idx, cols, thumb, spacing); err != nil {
-			fmt.Printf("[ERROR] 处理失败 %s：%v\n", filepath.Base(path), err)
+			// 单张图片处理失败时静默跳过，不中断整张拼图
 		}
 		if progress != nil {
 			progress(idx+1, n)

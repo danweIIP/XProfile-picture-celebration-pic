@@ -3,9 +3,6 @@ package main
 import (
 	"fmt"
 	"image/color"
-	"os"
-	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -18,32 +15,6 @@ var validExts = map[string]bool{
 	".bmp":  true,
 	".gif":  true,
 	".webp": true,
-}
-
-// scanImages 扫描文件夹，返回按文件名排序的图片路径列表（不递归子目录，与原版行为一致）
-func scanImages(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	var names []string
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		ext := strings.ToLower(filepath.Ext(e.Name()))
-		if validExts[ext] {
-			names = append(names, e.Name())
-		}
-	}
-	sort.Strings(names)
-
-	paths := make([]string, len(names))
-	for i, n := range names {
-		paths[i] = filepath.Join(dir, n)
-	}
-	return paths, nil
 }
 
 // parseHexColor 解析形如 "#RRGGBB" 的十六进制颜色字符串
