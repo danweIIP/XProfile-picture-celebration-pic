@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         X头像助手 v0.7 自动采集
+// @name         X头像助手
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.0.8
 // @description  X粉丝头像自动采集工具（时间顺序版）
-// @author       Qiujiu
+// @author       MoAEIOU
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @run-at       document-idle
@@ -13,10 +13,10 @@
 (function () {
   "use strict";
 
-  if (window.XAvatar070) return;
-  window.XAvatar070 = true;
+  if (window.XAvatar008) return;
+  window.XAvatar008 = true;
 
-  const VERSION = "v0.7";
+  const VERSION = "v0.0.8";
 
   let running = false;
 
@@ -36,27 +36,20 @@
 
   const btn = document.createElement("button");
 
-  btn.textContent = "📷";
+  btn.textContent = "🖼";
 
   btn.style.cssText = `
-
 position:fixed;
-right:20px;
-bottom:120px;
-
-width:58px;
-height:58px;
-
-border-radius:50%;
+background:#FFFFFFD9;
+outline: 1px solid #000;
+width:55px;
+height:55px;
+font-size:20px;
+z-index:999;
+right:12px;
+bottom:160px;
+border-radius:10%;
 border:0;
-
-background:#1d9bf0;
-color:white;
-
-font-size:25px;
-
-z-index:999999;
-
 `;
 
   document.body.appendChild(btn);
@@ -103,7 +96,7 @@ style="font-size:18px;font-weight:bold;">
 
 状态：
 <span id="status">
-等待
+还未开始
 </span>
 
 <br><br>
@@ -136,7 +129,7 @@ style="font-size:18px;font-weight:bold;">
 <br>
 
 
-时间：
+时间（2000秒后超时）：
 <span id="time">
 0
 </span>
