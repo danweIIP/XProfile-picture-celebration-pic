@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/pelletier/go-toml"
@@ -36,10 +35,11 @@ type AvatarList struct {
 	Avatars []AvatarInfo `toml:"avatar"`
 }
 
-// DownloadAvatarsFromConfig 读取油猴脚本导出的 TOML，把其中的头像 URL 并发下载到
-// 临时目录。返回值为成功下载的本地文件路径列表（保持 TOML 顺序）和临时目录，
+// DownloadAvatarsFromConfig 读取油猴脚本导出的 TOML，一次性对所有头像 URL 发起下载请求，
+// 逐个接收结果；下载失败的自动重试 3 次，仍失败则忽略该头像。
+// 返回值为成功下载的本地文件路径列表（保持 TOML 顺序）和临时目录，
 // 临时目录需要由调用方负责清理（defer os.RemoveAll）。
-func DownloadAvatarsFromConfig(configPath string, workers int, proxyURL string) ([]string, string, error) {
+func DownloadAvatarsFromConfig(configPath string, proxyURL string) ([]string, string, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("读取头像数据文件失败：%w", err)
@@ -83,9 +83,6 @@ func DownloadAvatarsFromConfig(configPath string, workers int, proxyURL string) 
 	if err != nil {
 		return nil, "", fmt.Errorf("创建临时目录失败：%w", err)
 	}
-	if workers <= 0 {
-		workers = 8
-	}
 
 	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
 
@@ -95,33 +92,20 @@ func DownloadAvatarsFromConfig(configPath string, workers int, proxyURL string) 
 		err   error
 	}
 
-	jobCh := make(chan int)
 	resultCh := make(chan result, len(jobs))
 
-	var wg sync.WaitGroup
-	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobCh {
-				path, err := downloadAvatar(client, jobs[i], i, tempDir)
-				resultCh <- result{index: i, path: path, err: err}
-			}
-		}()
+	// 对所有头像同时发起请求（每个头像一个 goroutine），结果按完成顺序接收
+	for i := range jobs {
+		go func(i int) {
+			path, err := downloadAvatarWithRetry(client, jobs[i], i, tempDir, 3)
+			resultCh <- result{index: i, path: path, err: err}
+		}(i)
 	}
-
-	go func() {
-		for i := range jobs {
-			jobCh <- i
-		}
-		close(jobCh)
-		wg.Wait()
-		close(resultCh)
-	}()
 
 	ordered := make([]string, len(jobs))
 	success, failures, done := 0, 0, 0
-	for r := range resultCh {
+	for range jobs {
+		r := <-resultCh
 		done++
 		if r.err != nil {
 			failures++
@@ -147,6 +131,23 @@ func DownloadAvatarsFromConfig(configPath string, workers int, proxyURL string) 
 	}
 
 	return paths, tempDir, nil
+}
+
+// downloadAvatarWithRetry 下载单个头像，失败时最多重试 attempts 次（共 attempts 次尝试），
+// 每次失败后短暂等待再试，全部失败则返回最后一次错误。
+func downloadAvatarWithRetry(client *http.Client, avatar AvatarInfo, index int, dir string, attempts int) (string, error) {
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		path, err := downloadAvatar(client, avatar, index, dir)
+		if err == nil {
+			return path, nil
+		}
+		lastErr = err
+		if attempt < attempts {
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+	}
+	return "", lastErr
 }
 
 // checkAvatarServer 在正式下载前用第一条头像 URL 探测服务器连通性（经由同一个代理）。

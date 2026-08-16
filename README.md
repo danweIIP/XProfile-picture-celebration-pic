@@ -53,7 +53,6 @@
 | `-dedupe`            | `true`          | 是否启用感知哈希去重                                     |
 | `-threshold`         | `2`             | 去重的汉明距离阈值，越小越严格（越不容易误判为重复）     |
 | `-delete-duplicates` | `false`         | 发现重复后是否直接删除源文件（默认只是跳过，不动源文件） |
-| `-workers`           | `8`             | 并发下载头像的线程数                                     |
 
 头像输入支持：jpg / jpeg / png / bmp / gif / webp；拼图输出固定为 PNG
 
