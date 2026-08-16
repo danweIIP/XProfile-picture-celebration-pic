@@ -1,14 +1,17 @@
 package network
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pelletier/go-toml"
@@ -35,11 +38,12 @@ type AvatarList struct {
 	Avatars []AvatarInfo `toml:"avatar"`
 }
 
-// DownloadAvatarsFromConfig 读取油猴脚本导出的 TOML，一次性对所有头像 URL 发起下载请求，
-// 逐个接收结果；下载失败的自动重试 3 次，仍失败则忽略该头像。
+// DownloadAvatarsFromConfig 读取油猴脚本导出的 TOML，以 workers 为并发上限发起下载请求，
+// 结果逐个接收；瞬时错误（超时、网络异常、5xx/429）自动重试 3 次并带随机抖动，
+// 永久错误或重试仍失败的头像自动忽略。相同 URL 只下载一次。
 // 返回值为成功下载的本地文件路径列表（保持 TOML 顺序）和临时目录，
 // 临时目录需要由调用方负责清理（defer os.RemoveAll）。
-func DownloadAvatarsFromConfig(configPath string, proxyURL string) ([]string, string, error) {
+func DownloadAvatarsFromConfig(configPath string, workers int, proxyURL string) ([]string, string, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("读取头像数据文件失败：%w", err)
@@ -55,13 +59,21 @@ func DownloadAvatarsFromConfig(configPath string, proxyURL string) ([]string, st
 		return nil, "", fmt.Errorf("TOML文件中没有头像数据")
 	}
 
-	// 过滤掉没有 avatar URL 的条目
+	// 过滤掉没有 avatar URL 的条目，并按最终请求的 URL 去重
+	// （_normal/_bigger 等不同尺寸会升级到同一个 _400x400 地址，按升级后地址判断）
+	seen := make(map[string]string)
 	var jobs []AvatarInfo
 	for _, a := range avatars {
 		if strings.TrimSpace(a.Avatar) == "" {
 			fmt.Printf("已跳过 %s（缺少头像链接）\n", labelOf(a))
 			continue
 		}
+		key := upgradeAvatarURL(strings.TrimSpace(a.Avatar))
+		if first, ok := seen[key]; ok {
+			fmt.Printf("已跳过 %s（头像与 %s 相同）\n", labelOf(a), first)
+			continue
+		}
+		seen[key] = labelOf(a)
 		jobs = append(jobs, a)
 	}
 	if len(jobs) == 0 {
@@ -83,6 +95,9 @@ func DownloadAvatarsFromConfig(configPath string, proxyURL string) ([]string, st
 	if err != nil {
 		return nil, "", fmt.Errorf("创建临时目录失败：%w", err)
 	}
+	if workers <= 0 {
+		workers = 50
+	}
 
 	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
 
@@ -93,19 +108,33 @@ func DownloadAvatarsFromConfig(configPath string, proxyURL string) ([]string, st
 	}
 
 	resultCh := make(chan result, len(jobs))
+	jobCh := make(chan int)
 
-	// 对所有头像同时发起请求（每个头像一个 goroutine），结果按完成顺序接收
-	for i := range jobs {
-		go func(i int) {
-			path, err := downloadAvatarWithRetry(client, jobs[i], i, tempDir, 3)
-			resultCh <- result{index: i, path: path, err: err}
-		}(i)
+	// 高并发但设上限：workers 个 worker 同时消费任务，任务源源不断送入
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobCh {
+				path, err := downloadAvatarWithRetry(client, jobs[i], i, tempDir, 3)
+				resultCh <- result{index: i, path: path, err: err}
+			}
+		}()
 	}
+
+	go func() {
+		for i := range jobs {
+			jobCh <- i
+		}
+		close(jobCh)
+		wg.Wait()
+		close(resultCh)
+	}()
 
 	ordered := make([]string, len(jobs))
 	success, failures, done := 0, 0, 0
-	for range jobs {
-		r := <-resultCh
+	for r := range resultCh {
 		done++
 		if r.err != nil {
 			failures++
@@ -133,8 +162,9 @@ func DownloadAvatarsFromConfig(configPath string, proxyURL string) ([]string, st
 	return paths, tempDir, nil
 }
 
-// downloadAvatarWithRetry 下载单个头像，失败时最多重试 attempts 次（共 attempts 次尝试），
-// 每次失败后短暂等待再试，全部失败则返回最后一次错误。
+// downloadAvatarWithRetry 下载单个头像，最多尝试 attempts 次。
+// 只有瞬时错误才重试（网络异常、超时、5xx/429），每次重试前随机抖动退避；
+// 4xx 等永久错误直接放弃。全部失败返回最后一次错误。
 func downloadAvatarWithRetry(client *http.Client, avatar AvatarInfo, index int, dir string, attempts int) (string, error) {
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
@@ -143,11 +173,41 @@ func downloadAvatarWithRetry(client *http.Client, avatar AvatarInfo, index int, 
 			return path, nil
 		}
 		lastErr = err
+		if !isRetryable(err) {
+			break
+		}
 		if attempt < attempts {
-			time.Sleep(time.Duration(attempt) * time.Second)
+			// 随机抖动退避：基础 1s、2s... + 0~500ms，避免所有失败请求同时重试
+			base := time.Duration(attempt) * time.Second
+			jitter := time.Duration(rand.IntN(500)) * time.Millisecond
+			time.Sleep(base + jitter)
 		}
 	}
 	return "", lastErr
+}
+
+// httpStatusError 携带 HTTP 状态码的错误，便于判断是否值得重试。
+type httpStatusError struct {
+	code int
+	msg  string
+}
+
+func (e *httpStatusError) Error() string {
+	return e.msg
+}
+
+func (e *httpStatusError) StatusCode() int {
+	return e.code
+}
+
+// isRetryable 判断错误是否值得重试：429/5xx 属于服务器瞬时状态，网络层错误也视为瞬时；
+// 4xx 等其他 HTTP 状态是永久错误，不值得重试。
+func isRetryable(err error) bool {
+	var se *httpStatusError
+	if errors.As(err, &se) {
+		return se.code == 408 || se.code == 425 || se.code == 429 || se.code >= 500
+	}
+	return true
 }
 
 // checkAvatarServer 在正式下载前用第一条头像 URL 探测服务器连通性（经由同一个代理）。
@@ -202,7 +262,7 @@ func downloadAvatar(client *http.Client, avatar AvatarInfo, index int, dir strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP状态码 %d", resp.StatusCode)
+		return "", &httpStatusError{code: resp.StatusCode, msg: fmt.Sprintf("HTTP状态码 %d", resp.StatusCode)}
 	}
 
 	ext := getFileExtension(rawURL, resp.Header.Get("Content-Type"))

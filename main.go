@@ -41,6 +41,7 @@ func main() {
 	threshold := fs.Int("threshold", defaultThreshold, "感知哈希去重的汉明距离阈值，越小越严格")
 	deleteDup := fs.Bool("delete-duplicates", false, "发现重复图片后直接删除源文件（默认只跳过，不删除）")
 	cols := fs.Int("cols", 0, "手动指定列数（默认自动计算最接近正方形的布局）")
+	workers := fs.Int("workers", 50, "并发下载上限（默认 50）")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -67,7 +68,7 @@ func main() {
 	if *spacing < 0 {
 		fatal("间距不能为负数，当前为 %d", *spacing)
 	}
-	paths, tempDir, err := network.DownloadAvatarsFromConfig(*configFile, *proxy)
+	paths, tempDir, err := network.DownloadAvatarsFromConfig(*configFile, *workers, *proxy)
 	if tempDir != "" {
 		defer os.RemoveAll(tempDir)
 	}
@@ -161,6 +162,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  -threshold <整数>      去重汉明距离阈值，越小越严格（默认 2）")
 	fmt.Fprintln(w, "  -delete-duplicates     去重时直接删除重复的源文件（默认只跳过）")
 	fmt.Fprintln(w, "  -cols <整数>           手动指定列数（默认自动）")
+	fmt.Fprintln(w, "  -workers <整数>        并发下载上限（默认 50）")
 	fmt.Fprintln(w, "  -h / -help             显示本帮助")
 }
 
