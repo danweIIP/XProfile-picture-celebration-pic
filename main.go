@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"xavatarwall/image"
+	"xavatarwall/network"
 )
 
 const (
@@ -30,6 +33,7 @@ func main() {
 
 	configFile := fs.String("config", defaultConfigFile, "头像数据 TOML 文件路径（油猴脚本导出的文件）")
 	outputPath := fs.String("output", "", "输出图片路径（默认 fans_grid.png）")
+	proxy := fs.String("proxy", "", "下载时使用的代理，如 socks5://127.0.0.1:1080 或 http://127.0.0.1:7890（自动识别类型）")
 	thumbSize := fs.Int("size", defaultThumbSize, "每张头像缩略图的边长（像素）")
 	spacing := fs.Int("spacing", defaultSpacing, "头像之间的间距（像素）")
 	bgHex := fs.String("bg", defaultBGHex, "背景颜色，十六进制，如 #ADD8E6")
@@ -53,7 +57,7 @@ func main() {
 		*outputPath = filepath.Join(defaultOutputDir, defaultOutName)
 	}
 
-	bg, err := parseHexColor(*bgHex)
+	bg, err := image.ParseHexColor(*bgHex)
 	if err != nil {
 		fatal("背景颜色格式错误：%v（应为形如 #ADD8E6 的十六进制颜色）", err)
 	}
@@ -64,7 +68,7 @@ func main() {
 	if *spacing < 0 {
 		fatal("间距不能为负数，当前为 %d", *spacing)
 	}
-	paths, tempDir, err := downloadAvatarsFromConfig(*configFile, *workers)
+	paths, tempDir, err := network.DownloadAvatarsFromConfig(*configFile, *workers, *proxy)
 	if tempDir != "" {
 		defer os.RemoveAll(tempDir)
 	}
@@ -77,7 +81,7 @@ func main() {
 	}
 
 	if *dedupe {
-		groups, err := findDuplicates(paths, *threshold)
+		groups, err := image.FindDuplicates(paths, *threshold)
 		if err != nil {
 			fmt.Printf("去重扫描出现错误：%v（将继续使用全部图片）\n", err)
 		} else if len(groups) == 0 {
@@ -120,14 +124,14 @@ func main() {
 		fatal("去重后没有剩余图片，无法拼图")
 	}
 
-	opts := GridOptions{
+	opts := image.GridOptions{
 		ThumbSize:  *thumbSize,
 		Spacing:    *spacing,
 		Background: bg,
 		Cols:       *cols,
 	}
 
-	if err := buildGrid(paths, *outputPath, opts, nil); err != nil {
+	if err := image.BuildGrid(paths, *outputPath, opts, nil); err != nil {
 		fatal("拼图失败：%v", err)
 	}
 
@@ -150,6 +154,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "参数：")
 	fmt.Fprintln(w, "  -config <文件>         头像数据 TOML 文件（默认 avatars.toml）")
 	fmt.Fprintln(w, "  -output <路径>         输出图片路径（默认 fans_grid.png）")
+	fmt.Fprintln(w, "  -proxy <地址>          下载代理，支持 http/https/socks5（默认直连）")
 	fmt.Fprintln(w, "  -size <像素>           每张头像缩略图边长（默认 200）")
 	fmt.Fprintln(w, "  -spacing <像素>        头像间距（默认 4）")
 	fmt.Fprintln(w, "  -bg <颜色>             背景颜色，如 #ADD8E6（默认 #ADD8E6）")

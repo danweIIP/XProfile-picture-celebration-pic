@@ -9,6 +9,8 @@ jobs:
   build:
     name: Build for ${{ matrix.dickname }}
     runs-on: ubuntu-latest
+    env:
+      pn: xavatarwall
     strategy:
       fail-fast: false
       matrix:
@@ -50,14 +52,14 @@ jobs:
         shell: bash
         run: |
           mv go.mod.backup go.mod
-          ${{ matrix.tag }} go build -o ./xavatarwall-${{ matrix.dickname }} .
+          ${{ matrix.tag }} go build -o ${{ env.pn }}-${{ matrix.dickname }} .
 
       - name: Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@master
         with:
-          tag_name: V0.0.3
-          files: xavatarwall-${{ matrix.dickname }}
+          tag_name: V0.0.4
+          files: ${{ env.pn }}-${{ matrix.dickname }}
           body: |
             # 📝 Release Note
             Fixes and improvements

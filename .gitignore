@@ -1,9 +1,6 @@
-# 操作系统自动生成的
 desktop.ini
 .DS_Store/
-# 二进制文件
+
 xavatarwall*
-# 测试用文件
 *.toml
-# 生成的图片
 fans-grid.png

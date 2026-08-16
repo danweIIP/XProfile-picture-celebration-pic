@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         X头像助手
 // @namespace    https://tampermonkey.net/
-// @version      0.1.1
+// @version      0.1.2
 // @updateURL    https://raw.githubusercontent.com/moaeiou/XAvatarWall/refs/heads/main/%E4%B8%80%E9%94%AE%E4%B8%8B%E8%BD%BD%E5%A4%B4%E5%83%8F.js
 // @downloadURL  https://raw.githubusercontent.com/moaeiou/XAvatarWall/refs/heads/main/%E4%B8%80%E9%94%AE%E4%B8%8B%E8%BD%BD%E5%A4%B4%E5%83%8F.js
 // @description  X粉丝头像自动采集工具（时间顺序版）
@@ -25,7 +25,6 @@
   let running = false;
   let users = new Map();
   let scrollCount = 0;
-  let startTime = 0;
   let noNew = 0;
 
   function sleep(t) {
@@ -36,17 +35,32 @@
   style.textContent = `
     .xa-toggle-btn {
       position: fixed;
-      right: 12px;
+      right: 16px;
       bottom: 160px;
-      width: 55px;
-      height: 55px;
+      width: 56px;
+      height: 56px;
       z-index: 999;
-      font-size: 20px;
-      border-radius: 10%;
+      font-size: 22px;
+      border-radius: 50%;
       border: 0;
-      background: #ffffffd9;
-      outline: 1px solid #000;
+      background: linear-gradient(135deg, #1d9bf0, #7c3aed);
+      box-shadow: 0 4px 14px rgba(29, 155, 240, 0.45);
+      color: #fff;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .xa-toggle-btn:hover {
+      transform: scale(1.08) rotate(-8deg);
+      box-shadow: 0 6px 20px rgba(29, 155, 240, 0.6);
+      filter: brightness(1.08);
+    }
+
+    .xa-toggle-btn:active {
+      transform: scale(0.94);
     }
 
     .xa-panel {
@@ -86,6 +100,15 @@
       border-radius: 20px;
       color: #fff;
       cursor: pointer;
+      transition: filter 0.2s ease, transform 0.1s ease;
+    }
+
+    .xa-btn:hover {
+      filter: brightness(1.12);
+    }
+
+    .xa-btn:active {
+      transform: scale(0.98);
     }
 
     .xa-btn-start {
@@ -116,7 +139,6 @@
     <div class="xa-row">用户：<span id="xa-count">0</span></div>
     <div class="xa-row">头像：<span id="xa-avatar">0</span></div>
     <div class="xa-row">滚动：<span id="xa-scroll">0</span></div>
-    <div class="xa-row">耗时：<span id="xa-time">0</span></div>
 
     <button class="xa-btn xa-btn-start" id="xa-start">开始采集</button>
     <button class="xa-btn xa-btn-stop" id="xa-stop">停止</button>
@@ -166,12 +188,6 @@
     ].filter((u) => u.avatar).length;
   }
 
-  setInterval(() => {
-    if (!startTime) return;
-    const seconds = Math.floor((Date.now() - startTime) / 1000);
-    document.querySelector("#xa-time").textContent = seconds + "秒";
-  }, 1000);
-
   async function run() {
     while (running) {
       document.querySelector("#xa-status").textContent = "扫描中";
@@ -195,7 +211,6 @@
   document.querySelector("#xa-start").onclick = () => {
     if (running) return;
     running = true;
-    startTime = Date.now();
     scrollCount = 0;
     noNew = 0;
     run();
