@@ -4,6 +4,7 @@ go 1.26.6
 
 require (
 	github.com/corona10/goimagehash v1.1.0
+	github.com/pelletier/go-toml v1.9.5
 	golang.org/x/image v0.45.0
 )
 

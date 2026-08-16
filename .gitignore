@@ -4,5 +4,6 @@ desktop.ini
 # 二进制文件
 xavatarwall*
 # 测试用文件
-*.json
-output/
+*.toml
+# 生成的图片
+fans-grid.png

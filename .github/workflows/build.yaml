@@ -56,7 +56,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@master
         with:
-          tag_name: V0.0.2
+          tag_name: V0.0.3
           files: xavatarwall-${{ matrix.dickname }}
           body: |
             # 📝 Release Note

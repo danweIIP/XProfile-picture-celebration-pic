@@ -22,12 +22,12 @@ func findDuplicates(paths []string, threshold int) ([][]string, error) {
 		img, err := decodeImage(p)
 		if err != nil {
 			// 单张图片解码失败不应中断整个去重流程，跳过并继续
-			fmt.Printf("[WARN] 去重扫描时无法读取 %s：%v\n", p, err)
+			fmt.Printf("去重扫描时无法读取 %s：%v\n", p, err)
 			continue
 		}
 		h, err := goimagehash.PerceptionHash(img)
 		if err != nil {
-			fmt.Printf("[WARN] 计算感知哈希失败 %s：%v\n", p, err)
+			fmt.Printf("计算感知哈希失败 %s：%v\n", p, err)
 			continue
 		}
 		items = append(items, hashed{path: p, hash: h})

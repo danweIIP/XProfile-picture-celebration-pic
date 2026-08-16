@@ -5,7 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"image/jpeg"
+	"image/png"
 	"math"
 	"os"
 	"path/filepath"
@@ -15,11 +15,10 @@ import (
 
 // GridOptions 控制拼图的排版与输出参数
 type GridOptions struct {
-	ThumbSize   int        // 每张缩略图的边长（正方形）
-	Spacing     int        // 缩略图之间及四周的间距
-	Background  color.RGBA // 画布背景色
-	JPEGQuality int        // 输出 JPEG 质量 1-100
-	Cols        int        // 手动指定列数，0 表示自动计算最接近正方形的布局
+	ThumbSize  int        // 每张缩略图的边长（正方形）
+	Spacing    int        // 缩略图之间及四周的间距
+	Background color.RGBA // 画布背景色
+	Cols       int        // 手动指定列数，0 表示自动计算最接近正方形的布局
 }
 
 // ProgressFunc 用于报告拼图进度：done 为已处理张数，total 为总张数
@@ -77,8 +76,9 @@ func buildGrid(paths []string, outputPath string, opts GridOptions, progress Pro
 	}
 	defer out.Close()
 
-	if err := jpeg.Encode(out, canvas, &jpeg.Options{Quality: opts.JPEGQuality}); err != nil {
-		return fmt.Errorf("编码 JPEG 失败：%w", err)
+	// 固定输出 PNG（无损，头像墙这类清晰度优先的图片更适合 PNG）
+	if err := png.Encode(out, canvas); err != nil {
+		return fmt.Errorf("编码 PNG 失败：%w", err)
 	}
 
 	return nil

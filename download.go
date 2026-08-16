@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,46 +11,64 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pelletier/go-toml"
 )
 
-// AvatarInfo 对应油猴脚本「一键下载头像.js」导出的 JSON 条目：
+// AvatarInfo 对应油猴脚本「一键下载头像.js」导出的 TOML 条目：
 //
-//	[{"username":"alice","avatar":"https://pbs.twimg.com/...","time":1700000000000,"order":1}, ...]
+//	[[avatar]]
+//	username = "alice"
+//	avatar = "https://pbs.twimg.com/..."
+//	time = 1700000000000
+//	order = 1
 type AvatarInfo struct {
-	Username string `json:"username"`
-	Avatar   string `json:"avatar"`
-	Time     int64  `json:"time"`
-	Order    int    `json:"order"`
+	Username string `toml:"username"`
+	Avatar   string `toml:"avatar"`
+	Time     int64  `toml:"time"`
+	Order    int    `toml:"order"`
 }
 
-// downloadAvatarsFromJSON 读取油猴脚本导出的 JSON，把其中的头像 URL 并发下载到
-// 临时目录。返回值为成功下载的本地文件路径列表（保持 JSON 顺序）和临时目录，
+// AvatarList 是 TOML 文件的顶层结构
+type AvatarList struct {
+	Avatars []AvatarInfo `toml:"avatar"`
+}
+
+// downloadAvatarsFromConfig 读取油猴脚本导出的 TOML，把其中的头像 URL 并发下载到
+// 临时目录。返回值为成功下载的本地文件路径列表（保持 TOML 顺序）和临时目录，
 // 临时目录需要由调用方负责清理（defer os.RemoveAll）。
-func downloadAvatarsFromJSON(jsonPath string, workers int) ([]string, string, error) {
-	data, err := os.ReadFile(jsonPath)
+func downloadAvatarsFromConfig(configPath string, workers int) ([]string, string, error) {
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, "", fmt.Errorf("读取JSON文件失败：%w", err)
+		return nil, "", fmt.Errorf("读取头像数据文件失败：%w", err)
 	}
 
-	var avatars []AvatarInfo
-	if err := json.Unmarshal(data, &avatars); err != nil {
-		return nil, "", fmt.Errorf("解析JSON文件失败（请确认是「一键下载头像.js」导出的格式）：%w", err)
+	var list AvatarList
+	if err := toml.Unmarshal(data, &list); err != nil {
+		return nil, "", fmt.Errorf("读取头像数据文件失败（请确认是「一键下载头像.js」导出的 TOML 格式）：%w", err)
 	}
+
+	avatars := list.Avatars
 	if len(avatars) == 0 {
-		return nil, "", fmt.Errorf("JSON文件中没有头像数据")
+		return nil, "", fmt.Errorf("TOML文件中没有头像数据")
 	}
 
 	// 过滤掉没有 avatar URL 的条目
 	var jobs []AvatarInfo
 	for _, a := range avatars {
 		if strings.TrimSpace(a.Avatar) == "" {
-			fmt.Printf("[WARN] 跳过 %s：缺少 avatar URL\n", labelOf(a))
+			fmt.Printf("已跳过 %s（缺少头像链接）\n", labelOf(a))
 			continue
 		}
 		jobs = append(jobs, a)
 	}
 	if len(jobs) == 0 {
-		return nil, "", fmt.Errorf("JSON文件中没有任何带 avatar URL 的头像")
+		return nil, "", fmt.Errorf("TOML文件中没有任何带 avatar URL 的头像")
+	}
+
+	// 下载前先探测头像服务器是否可访问，避免服务器不通时逐张等待超时
+	if err := checkAvatarServer(jobs); err != nil {
+		return nil, "", err
 	}
 
 	tempDir, err := os.MkdirTemp("", "xavatarwall-*")
@@ -95,20 +112,22 @@ func downloadAvatarsFromJSON(jsonPath string, workers int) ([]string, string, er
 	}()
 
 	ordered := make([]string, len(jobs))
-	failures := 0
+	success, failures, done := 0, 0, 0
 	for r := range resultCh {
+		done++
 		if r.err != nil {
 			failures++
 		} else {
+			success++
 			ordered[r.index] = r.path
 		}
+		if done < len(jobs) && done%20 == 0 {
+			fmt.Printf("下载进度：%d/%d（成功 %d，失败 %d）\n", done, len(jobs), success, failures)
+		}
 	}
+	fmt.Printf("下载完成：成功 %d，失败 %d\n", success, failures)
 
-	if failures > 0 {
-		fmt.Printf("[WARN] 共 %d 个头像，成功 %d 个，失败 %d 个\n", len(jobs), len(jobs)-failures, failures)
-	}
-
-	// 按 JSON 顺序整理成功下载的路径
+	// 按 TOML 顺序整理成功下载的路径
 	paths := make([]string, 0, len(jobs))
 	for _, p := range ordered {
 		if p != "" {
@@ -120,6 +139,42 @@ func downloadAvatarsFromJSON(jsonPath string, workers int) ([]string, string, er
 	}
 
 	return paths, tempDir, nil
+}
+
+// checkAvatarServer 在正式下载前用第一条头像 URL 探测服务器连通性。
+// 只要服务器有响应（哪怕 4xx/5xx）就算可访问；只有网络层错误（DNS/TCP/TLS/超时）才报错。
+func checkAvatarServer(avatars []AvatarInfo) error {
+	var probe string
+	for _, a := range avatars {
+		if u := strings.TrimSpace(a.Avatar); u != "" {
+			probe = u
+			break
+		}
+	}
+	if probe == "" {
+		return nil
+	}
+
+	host := probe
+	if u, err := url.Parse(probe); err == nil && u.Host != "" {
+		host = u.Host
+	}
+	fmt.Printf("正在检查头像服务器连通性（%s）...\n", host)
+
+	client := &http.Client{Timeout: 8 * time.Second}
+	req, err := http.NewRequest(http.MethodHead, probe, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; XAvatarWall/1.0)")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("无法访问 %s：%v", host, err)
+	}
+	resp.Body.Close()
+	fmt.Println("头像服务器可访问，开始下载")
+	return nil
 }
 
 // downloadAvatar 下载单个头像并保存到 dir，文件名尽量带上用户名方便排查。

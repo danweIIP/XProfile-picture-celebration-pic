@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         X头像助手
-// @namespace    http://tampermonkey.net/
-// @version      0.1.0
+// @namespace    https://tampermonkey.net/
+// @version      0.1.1
+// @updateURL    https://raw.githubusercontent.com/moaeiou/XAvatarWall/refs/heads/main/%E4%B8%80%E9%94%AE%E4%B8%8B%E8%BD%BD%E5%A4%B4%E5%83%8F.js
+// @downloadURL  https://raw.githubusercontent.com/moaeiou/XAvatarWall/refs/heads/main/%E4%B8%80%E9%94%AE%E4%B8%8B%E8%BD%BD%E5%A4%B4%E5%83%8F.js
 // @description  X粉丝头像自动采集工具（时间顺序版）
 // @author       MoAEIOU
 // @match        https://x.com/*
@@ -16,12 +18,10 @@
   if (window.XAvatar) return;
   window.XAvatar = true;
 
-  // ---------- 常量 ----------
-  const NO_NEW_STOP_THRESHOLD = 6; // 连续多少次滚动没有新用户就自动停止
-  const SCROLL_DELAY_MIN = 1800; // 每次滚动之间的最小间隔（毫秒）
-  const SCROLL_DELAY_JITTER = 1200; // 随机抖动区间，避免固定节奏过于像脚本
+  const NO_NEW_STOP_THRESHOLD = 6;
+  const SCROLL_DELAY_MIN = 1800;
+  const SCROLL_DELAY_JITTER = 1200;
 
-  // ---------- 状态 ----------
   let running = false;
   let users = new Map();
   let scrollCount = 0;
@@ -32,7 +32,6 @@
     return new Promise((r) => setTimeout(r, t));
   }
 
-  // ---------- 样式：集中定义在一个 <style> 块里，不再逐个元素写 inline style ----------
   const style = document.createElement("style");
   style.textContent = `
     .xa-toggle-btn {
@@ -103,13 +102,11 @@
   `;
   document.head.appendChild(style);
 
-  // ---------- 悬浮按钮 ----------
   const toggleBtn = document.createElement("button");
   toggleBtn.className = "xa-toggle-btn";
   toggleBtn.textContent = "🖼";
   document.body.appendChild(toggleBtn);
 
-  // ---------- 面板 ----------
   const panel = document.createElement("div");
   panel.className = "xa-panel";
   panel.innerHTML = `
@@ -123,7 +120,7 @@
 
     <button class="xa-btn xa-btn-start" id="xa-start">开始采集</button>
     <button class="xa-btn xa-btn-stop" id="xa-stop">停止</button>
-    <button class="xa-btn xa-btn-export" id="xa-export">导出为JSON文件</button>
+    <button class="xa-btn xa-btn-export" id="xa-export">导出为TOML文件</button>
   `;
   document.body.appendChild(panel);
 
@@ -131,7 +128,6 @@
     panel.classList.toggle("xa-panel-open");
   };
 
-  // ---------- 扫描粉丝卡片 ----------
   function scan() {
     const before = users.size;
 
@@ -145,33 +141,37 @@
       const img = cell.querySelector("img");
       const avatar = img ? img.src || "" : "";
 
-      if (!users.has(username)) {
-        users.set(username, {
-          username: username,
-          avatar: avatar,
-          time: Date.now(),
-          order: users.size + 1, // 发现顺序
-        });
+      if (!avatar) return;
+
+      const existing = users.get(username);
+      if (existing) {
+        existing.avatar = avatar;
+        return;
       }
+
+      users.set(username, {
+        username: username,
+        avatar: avatar,
+        time: Date.now(),
+        order: users.size + 1,
+      });
     });
 
     const added = users.size - before;
     noNew = added === 0 ? noNew + 1 : 0;
 
     document.querySelector("#xa-count").textContent = users.size;
-    document.querySelector("#xa-avatar").textContent = [...users.values()].filter(
-      (u) => u.avatar,
-    ).length;
+    document.querySelector("#xa-avatar").textContent = [
+      ...users.values(),
+    ].filter((u) => u.avatar).length;
   }
 
-  // ---------- 计时显示 ----------
   setInterval(() => {
     if (!startTime) return;
     const seconds = Math.floor((Date.now() - startTime) / 1000);
     document.querySelector("#xa-time").textContent = seconds + "秒";
   }, 1000);
 
-  // ---------- 主循环：滚动 + 扫描 ----------
   async function run() {
     while (running) {
       document.querySelector("#xa-status").textContent = "扫描中";
@@ -206,21 +206,32 @@
     document.querySelector("#xa-status").textContent = "已停止";
   };
 
-  // ---------- 导出 JSON ----------
   document.querySelector("#xa-export").onclick = () => {
-    const data = JSON.stringify([...users.values()], null, 2);
-    const blob = new Blob([data], { type: "application/json" });
+    const list = [...users.values()].filter((u) => u.avatar);
+
+    const tomlString = (s) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+    const lines = [];
+    for (const u of list) {
+      lines.push("[[avatar]]");
+      lines.push('username = "' + tomlString(u.username) + '"');
+      lines.push('avatar = "' + tomlString(u.avatar) + '"');
+      lines.push("time = " + u.time);
+      lines.push("order = " + u.order);
+      lines.push("");
+    }
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "X_avatar_" + Date.now() + ".json";
+    a.download = "X_avatar_" + Date.now() + ".toml";
     a.click();
 
     URL.revokeObjectURL(url);
   };
 
-  // ---------- 面板拖动 ----------
   let dragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
@@ -245,6 +256,5 @@
     dragging = false;
   };
 
-  // ---------- 初始扫描一次，方便打开面板就能看到当前已加载的粉丝数 ----------
   setTimeout(scan, 2000);
 })();
