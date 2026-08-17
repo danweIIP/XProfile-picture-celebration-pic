@@ -13,7 +13,7 @@
 
 ---
 
-[moaeiou 的版本](https://github.com/qiujiu-dev/XAvatarWall)也非常出色，感谢贡献！
+[moaeiou 的版本](https://github.com/moaeiou/XAvatarWall)也非常出色，感谢贡献！
 
 ---
 
