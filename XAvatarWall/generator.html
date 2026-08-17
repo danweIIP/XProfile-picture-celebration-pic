@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XAvatarWall 生成</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f7f9fc;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 48px;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #64748b; margin: 0 0 22px; font-size: 13px; }
+    #status { margin: 0 0 10px; color: #0f172a; font-size: 14px; }
+    .bar { width: min(560px, 90vw); height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin-bottom: 22px; }
+    .bar-fill { height: 100%; width: 0%; background: #2563eb; transition: width 0.2s ease; }
+    #preview { max-width: min(92vw, 720px); border-radius: 12px; box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12); display: none; }
+    .meta { color: #64748b; font-size: 12px; margin-top: 12px; min-height: 16px; }
+    .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+    button { cursor: pointer; border: 0; border-radius: 999px; padding: 10px 22px; font-size: 14px; font-weight: 600; }
+    .primary { background: #2563eb; color: #fff; }
+    .ghost { background: transparent; border: 1px solid #d1d5db; color: #0f172a; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>XAvatarWall</h1>
+  <p class="sub">粉丝纪念头像墙生成中…</p>
+  <div id="status">准备中…</div>
+  <div class="bar"><div class="bar-fill" id="fill"></div></div>
+  <img id="preview" alt="头像墙预览" />
+  <div class="meta" id="meta"></div>
+  <div class="actions">
+    <button id="saveBtn" class="primary" disabled>保存 JPG</button>
+    <button id="againBtn" class="ghost" disabled>重新生成</button>
+  </div>
+
+  <script src="db.js"></script>
+  <script src="downloader.js"></script>
+  <script src="generator.js"></script>
+</body>
+</html>

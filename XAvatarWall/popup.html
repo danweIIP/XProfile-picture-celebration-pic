@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XAvatarWall</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <img class="logo" src="assets/icon.png" alt="XAvatarWall" />
+    <div>
+      <h1>XAvatarWall</h1>
+      <p class="subtitle">粉丝纪念头像墙生成器</p>
+    </div>
+  </header>
+
+  <main>
+    <label class="field">
+      <span class="label">X 用户名</span>
+      <div class="input-wrap">
+        <span class="prefix">@</span>
+        <input id="username" type="text" placeholder="qiujiudev" autocomplete="off" spellcheck="false" />
+      </div>
+    </label>
+
+    <div class="row">
+      <label class="field grow">
+        <span class="label">生成数量</span>
+        <input id="maxCount" type="number" min="1" placeholder="全部" />
+      </label>
+      <label class="field grow">
+        <span class="label">头像大小</span>
+        <select id="avatarSize">
+          <option value="80">80px</option>
+          <option value="120">120px</option>
+          <option value="160" selected>160px</option>
+          <option value="200">200px</option>
+        </select>
+      </label>
+    </div>
+
+    <fieldset class="field">
+      <legend class="label">排序</legend>
+      <div class="radios">
+        <label><input type="radio" name="sort" value="default" checked /> X 显示顺序</label>
+        <label><input type="radio" name="sort" value="old" /> 老粉优先</label>
+        <label><input type="radio" name="sort" value="new" /> 新粉优先</label>
+      </div>
+    </fieldset>
+
+    <label class="field">
+      <span class="label">背景颜色</span>
+      <div class="color-row">
+        <input id="bgColor" type="color" value="#dbeafe" />
+        <span id="bgColorText">#dbeafe</span>
+      </div>
+    </label>
+
+    <div class="actions">
+      <button id="startBtn" class="btn primary">开始制作</button>
+      <button id="stopBtn" class="btn danger" hidden>停止</button>
+    </div>
+
+    <section class="status" id="statusSection" hidden>
+      <div class="status-row">
+        <span id="statusText" class="status-text">采集中…</span>
+        <span id="statusCount" class="status-count"></span>
+      </div>
+      <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <button id="openGenBtn" class="link">打开生成页面</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
