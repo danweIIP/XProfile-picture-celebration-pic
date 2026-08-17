@@ -83,10 +83,4 @@ popup ──START──> background ──打开 followers 页──> collector
 - 主机权限 `*.x.com`、`*.twitter.com`：采集粉丝页。
 - 主机权限 `*.twimg.com`：后台下载头像图片。
 
-## 路线图（后续可选）
 
-- 自定义模板与更多排版
-- 把用户自己的头像加入标题栏
-- 更多文字 / 水印选项
-- 采集进度更细粒度展示
-- 打包发布到 Chrome 网上应用店与 GitHub
