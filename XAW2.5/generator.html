@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XAvatarWall 生成</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f7f9fc;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 48px;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #64748b; margin: 0 0 22px; font-size: 13px; }
+    #status { margin: 0 0 10px; color: #0f172a; font-size: 14px; }
+    .bar { width: min(560px, 90vw); height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin-bottom: 22px; }
+    .bar-fill { height: 100%; width: 0%; background: #2563eb; transition: width 0.2s ease; }
+    #preview { max-width: min(92vw, 720px); border-radius: 12px; box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12); display: none; }
+    .meta { color: #64748b; font-size: 12px; margin-top: 12px; min-height: 16px; }
+    .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+    button { cursor: pointer; border: 0; border-radius: 999px; padding: 10px 22px; font-size: 14px; font-weight: 600; }
+    .primary { background: #2563eb; color: #fff; }
+    .ghost { background: transparent; border: 1px solid #d1d5db; color: #0f172a; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .settings { width: min(560px, 90vw); margin-bottom: 18px; }
+    .settings-panel {
+      margin-top: 10px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    .s-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: #334155; }
+    .s-field input[type="text"],
+    .s-field select {
+      padding: 7px 9px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #fff;
+      color: #0f172a;
+      outline: none;
+    }
+    .s-field input:focus,
+    .s-field select:focus { border-color: #2563eb; }
+    .s-hint { font-size: 11px; color: #94a3b8; }
+    .color-row { display: flex; align-items: center; gap: 8px; }
+    .color-row input[type="color"] { width: 42px; height: 28px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px; background: #fff; }
+    .radio-row { display: flex; gap: 10px; align-items: center; }
+    .radio-row label { display: flex; align-items: center; gap: 3px; font-size: 12px; }
+    #saveSettings { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>XAvatarWall</h1>
+  <p class="sub">粉丝纪念头像墙生成中…</p>
+
+  <div class="settings">
+    <button id="toggleSettings" class="ghost">个性化设置</button>
+    <div id="settingsPanel" class="settings-panel" hidden>
+      <div class="settings-grid">
+        <label class="s-field">
+          <span>顶部标题</span>
+          <input id="cfgTitle" type="text" placeholder="XX fo谢谢大家，感谢大家！" />
+          <span class="s-hint">XX 会自动变成头像数量</span>
+        </label>
+        <label class="s-field">
+          <span>图片下方文字</span>
+          <input id="cfgExtraText" type="text" placeholder="例如：感谢一路相伴" />
+        </label>
+        <label class="s-field">
+          <span>背景风格</span>
+          <select id="cfgStyle">
+            <option value="classic">经典纯色</option>
+            <option value="gradient-v">渐变：从上到下</option>
+            <option value="gradient-h">渐变：从左到右</option>
+            <option value="gradient-diag">渐变：从左上到右下</option>
+            <option value="gradient-radial">渐变：中间向四周</option>
+            <option value="dark">深色</option>
+          </select>
+        </label>
+        <label class="s-field">
+          <span>背景颜色</span>
+          <div class="color-row">
+            <input id="cfgBg" type="color" value="#dbeafe" />
+            <span id="cfgBgText">#dbeafe</span>
+          </div>
+        </label>
+        <div id="genColorRow" hidden>
+          <label class="s-field">
+            <span>渐变起始色</span>
+            <div class="color-row">
+              <input id="cfgColorA" type="color" value="#dbeafe" />
+              <span id="cfgColorAText">#dbeafe</span>
+            </div>
+          </label>
+          <label class="s-field">
+            <span>渐变结束色</span>
+            <div class="color-row">
+              <input id="cfgColorB" type="color" value="#93c5fd" />
+              <span id="cfgColorBText">#93c5fd</span>
+            </div>
+          </label>
+        </div>
+        <label class="s-field">
+          <span>头像形状</span>
+          <select id="cfgShape">
+            <option value="round">圆角</option>
+            <option value="square">方形</option>
+            <option value="circle">圆形</option>
+          </select>
+        </label>
+        <label class="s-field">
+          <span>标题颜色</span>
+          <div class="color-row">
+            <input id="cfgTitleColor" type="color" value="#2563eb" />
+            <span id="cfgTitleColorText">#2563eb</span>
+          </div>
+        </label>
+        <label class="s-field">
+          <span>我的头像展示</span>
+          <div class="radio-row">
+            <label><input type="radio" name="cfgHighlight" value="none" /> 不显示</label>
+            <label><input type="radio" name="cfgHighlight" value="me" checked /> 我最大</label>
+            <label><input type="radio" name="cfgHighlight" value="center" /> 居中放大</label>
+          </div>
+        </label>
+        <label class="s-field">
+          <span>网格间距</span>
+          <select id="cfgGap">
+            <option value="auto">自动</option>
+            <option value="small">紧凑</option>
+            <option value="wide">宽松</option>
+          </select>
+        </label>
+      </div>
+      <button id="saveSettings" class="primary">保存设置并重新生成</button>
+    </div>
+  </div>
+
+  <div id="status">准备中…</div>
+  <div class="bar"><div class="bar-fill" id="fill"></div></div>
+  <img id="preview" alt="头像墙预览" />
+  <div class="meta" id="meta"></div>
+  <div class="actions">
+    <button id="saveBtn" class="primary" disabled>保存 JPG</button>
+    <button id="againBtn" class="ghost" disabled>重新生成</button>
+  </div>
+
+  <script src="db.js"></script>
+  <script src="downloader.js"></script>
+  <script src="generator.js"></script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XAvatarWall</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <img class="logo" src="assets/icon.png" alt="XAvatarWall" />
+    <div>
+      <h1>XAvatarWall</h1>
+      <p class="subtitle">粉丝纪念头像墙生成器</p>
+    </div>
+    <div class="version-box" title="打开 GitHub 仓库">
+      <span id="versionText">v2.5</span>
+      <span id="updateBadge" hidden></span>
+      <a id="checkUpdateLink" href="#">检查更新</a>
+    </div>
+  </header>
+
+  <main>
+    <label class="field">
+      <span class="label">X 用户名</span>
+      <div class="input-wrap">
+        <span class="prefix">@</span>
+        <input id="username" type="text" placeholder="qiujiudev" autocomplete="off" spellcheck="false" />
+      </div>
+    </label>
+
+    <div class="row">
+      <label class="field grow">
+        <span class="label">生成数量</span>
+        <input id="maxCount" type="number" min="1" placeholder="全部" />
+      </label>
+      <label class="field grow">
+        <span class="label">头像大小</span>
+        <select id="avatarSize">
+          <option value="80">80px</option>
+          <option value="120">120px</option>
+          <option value="160" selected>160px</option>
+          <option value="200">200px</option>
+        </select>
+      </label>
+    </div>
+
+    <fieldset class="field">
+      <legend class="label">排序</legend>
+      <div class="radios">
+        <label><input type="radio" name="sort" value="default" checked /> X 显示顺序</label>
+        <label><input type="radio" name="sort" value="old" /> 老粉优先</label>
+        <label><input type="radio" name="sort" value="new" /> 新粉优先</label>
+      </div>
+    </fieldset>
+
+    <div class="settings">
+      <div class="settings-title">个性化设置</div>
+      <div class="settings-wrap">
+        <div class="settings-overlay" id="settingsOverlay" hidden>
+          <span>请等图片生成后再更改</span>
+        </div>
+        <div class="settings-panel">
+          <label class="field">
+          <span class="label">顶部标题</span>
+          <input id="cfgTitle" type="text" placeholder="XX fo谢谢大家，感谢大家！" />
+          <div class="hint">XX 会自动变成头像数量</div>
+        </label>
+        <label class="field">
+          <span class="label">图片下方文字</span>
+          <input id="cfgExtraText" type="text" placeholder="例如：感谢一路相伴" />
+        </label>
+        <label class="field">
+          <span class="label">背景风格</span>
+          <select id="cfgStyle">
+            <option value="classic">经典纯色</option>
+            <option value="gradient-v">渐变：从上到下</option>
+            <option value="gradient-h">渐变：从左到右</option>
+            <option value="gradient-diag">渐变：从左上到右下</option>
+            <option value="gradient-radial">渐变：中间向四周</option>
+            <option value="dark">深色</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">背景颜色</span>
+          <div class="color-row">
+            <input id="bgColor" type="color" value="#dbeafe" />
+            <span id="bgColorText">#dbeafe</span>
+          </div>
+        </label>
+        <div id="genColorRow" hidden>
+          <label class="field">
+            <span class="label">渐变起始色</span>
+            <div class="color-row">
+              <input id="cfgColorA" type="color" value="#dbeafe" />
+              <span id="cfgColorAText">#dbeafe</span>
+            </div>
+          </label>
+          <label class="field">
+            <span class="label">渐变结束色</span>
+            <div class="color-row">
+              <input id="cfgColorB" type="color" value="#93c5fd" />
+              <span id="cfgColorBText">#93c5fd</span>
+            </div>
+          </label>
+        </div>
+        <label class="field">
+          <span class="label">头像形状</span>
+          <select id="cfgShape">
+            <option value="round">圆角</option>
+            <option value="square">方形</option>
+            <option value="circle">圆形</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">标题颜色</span>
+          <div class="color-row">
+            <input id="cfgTitleColor" type="color" value="#2563eb" />
+            <span id="cfgTitleColorText">#2563eb</span>
+          </div>
+        </label>
+        <label class="field">
+          <span class="label">我的头像展示</span>
+          <select id="cfgHighlight">
+            <option value="none">不显示</option>
+            <option value="me">我最大</option>
+            <option value="center">居中放大</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">网格间距</span>
+          <select id="cfgGap">
+            <option value="auto">自动</option>
+            <option value="small">紧凑</option>
+            <option value="wide">宽松</option>
+          </select>
+        </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="startBtn" class="btn primary">开始制作</button>
+      <button id="stopBtn" class="btn danger" hidden>停止</button>
+    </div>
+
+    <section class="status" id="statusSection" hidden>
+      <div class="status-row">
+        <span id="statusText" class="status-text">采集中…</span>
+        <span id="statusCount" class="status-count"></span>
+      </div>
+      <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <button id="openGenBtn" class="link">打开生成页面</button>
+  </footer>
+
+  <script src="popup.js"></script>
+  <script src="db.js"></script>
+</body>
+</html>

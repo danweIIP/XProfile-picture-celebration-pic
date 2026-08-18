@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "XAvatarWall",
+  "version": "2.5",
+  "description": "采集 X (Twitter) 粉丝头像，自动生成粉丝纪念头像墙图片。",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.x.com/*",
+    "https://*.twitter.com/*",
+    "https://*.twimg.com/*",
+    "https://raw.githubusercontent.com/*",
+    "https://api.github.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "XAvatarWall",
+    "default_icon": {
+      "16": "assets/icon.png",
+      "48": "assets/icon.png",
+      "128": "assets/icon.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icon.png",
+    "48": "assets/icon.png",
+    "128": "assets/icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.x.com/*",
+        "https://*.twitter.com/*"
+      ],
+      "js": [
+        "collector.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
